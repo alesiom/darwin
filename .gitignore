@@ -1,0 +1,8 @@
+node_modules/
+CLAUDE.md
+.env
+config/master-wallet.json
+agents/**/wallet.json
+logs/
+*.log
+.DS_Store
