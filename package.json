@@ -1,0 +1,26 @@
+{
+  "name": "darwin",
+  "version": "0.1.0",
+  "description": "100 AI agents compete in a survival tournament on Solana. The best decision-making strategies evolve.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "wallets": "node src/wallets.js",
+    "lint": "eslint src/"
+  },
+  "keywords": ["ai", "trading", "solana", "tournament", "evolution"],
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@jup-ag/api": "^6.0.36",
+    "@solana/spl-token": "^0.4.12",
+    "@solana/web3.js": "^1.98.0",
+    "chalk": "^5.4.1",
+    "dotenv": "^16.4.7",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "eslint": "^9.20.0"
+  }
+}
