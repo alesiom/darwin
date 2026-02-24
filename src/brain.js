@@ -185,26 +185,50 @@ function validateDecideResponse(data, rules) {
 // --- Public Interface ---
 
 // Evaluate token candidates against an agent's personality (lightweight model).
+// Retries once on malformed response, then defaults to skip.
 export async function scan(agentId, personality, candidates) {
   const prompt = buildScanPrompt(agentId, personality, candidates);
-  const result = await getProvider().scan(prompt);
 
-  trackUsage('scan', result.usage);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const result = await getProvider().scan(prompt);
+    trackUsage('scan', result.usage);
 
-  const parsed = parseJsonResponse(result.text);
-  return validateScanResponse(parsed);
+    try {
+      const parsed = parseJsonResponse(result.text);
+      return validateScanResponse(parsed);
+    } catch (err) {
+      if (attempt === 0) {
+        log.warn(`Scan response malformed for agent ${agentId}, retrying: ${err.message}`);
+        continue;
+      }
+      log.warn(`Scan response malformed after retry for agent ${agentId}, defaulting to skip: ${err.message}`);
+      return { action: 'skip', token: null, reasoning: `Malformed LLM response: ${err.message}` };
+    }
+  }
 }
 
 // Make a full trade decision with deep reasoning (strong model).
+// Retries once on malformed response, then defaults to skip.
 export async function decide(agentId, personality, context) {
   const rules = context.rules || await readJson('config/tournament-rules.json');
   context.rules = rules;
 
   const prompt = buildDecidePrompt(agentId, personality, context);
-  const result = await getProvider().decide(prompt);
 
-  trackUsage('decide', result.usage);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const result = await getProvider().decide(prompt);
+    trackUsage('decide', result.usage);
 
-  const parsed = parseJsonResponse(result.text);
-  return validateDecideResponse(parsed, rules);
+    try {
+      const parsed = parseJsonResponse(result.text);
+      return validateDecideResponse(parsed, rules);
+    } catch (err) {
+      if (attempt === 0) {
+        log.warn(`Decide response malformed for agent ${agentId}, retrying: ${err.message}`);
+        continue;
+      }
+      log.warn(`Decide response malformed after retry for agent ${agentId}, defaulting to skip: ${err.message}`);
+      return { action: 'skip', token: null, reasoning: `Malformed LLM response: ${err.message}` };
+    }
+  }
 }
