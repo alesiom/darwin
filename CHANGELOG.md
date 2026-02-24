@@ -24,3 +24,9 @@ All notable changes to Darwin are documented in this file.
 - On-chain safety checks (src/safety.js): mint/freeze authority verification, top-holder concentration analysis via largest accounts (Closes #7)
 - Safety report compilation (src/safety.js): pool liquidity impact gate, parallel check orchestration, HIGH/MODERATE/LOW risk classification, formatted report string for decision engine (Closes #8)
 - Scanner filter config (config/tournament-rules.json): token age bounds, volume floor, cache TTL, max cache size
+- DEX swap execution (src/trader.js): quote fetching with retry, buy execution with per-trade cap enforcement and price impact gating, paper mode branching (Closes #12)
+- Sell execution (src/trader.js): token sell with 5x retry for stuck positions, P&L calculation, on-chain balance zero edge case handling (Closes #13)
+- Paper trading mock (src/trader.js): paper buy/sell using aggregator quotes without on-chain transactions, position and history persistence (Closes #14)
+- Position monitoring (src/monitor.js): shared price polling with batched DEX data fetches (30 tokens/request), per-agent exit trigger evaluation, rate limiting (200 req/min) (Closes #15)
+- Personality-aware exit thresholds (src/monitor.js): strict, trailing_stop, impatient, diamond_hands strategies mapped to take-profit/stop-loss/timeout parameters
+- Slippage config (config/tournament-rules.json): slippageBps 300 (3%), tunable per tournament
