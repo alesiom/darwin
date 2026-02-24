@@ -1,0 +1,28 @@
+{
+  "agentsPerTournament": 100,
+  "startingCapitalUsdc": 5,
+  "gasPerAgentSol": 0.3,
+  "durationDays": 31,
+  "shotsPerMonth": 31,
+  "takeProfitPercent": 20,
+  "stopLossPercent": 10,
+  "maxTradeCapUsdc": 25,
+  "minTradeUsdc": 0.5,
+  "minPoolLiquidityUsdc": 1250,
+  "poolImpactMaxPercent": 2,
+  "eliminationCount": 50,
+  "deathThreshold": 0,
+  "massDeathCircuitBreaker": {
+    "threshold": 0.7,
+    "beforeDay": 15
+  },
+  "reserveSystem": true,
+  "initialReserveUsdc": 0,
+  "exitTriggers": {
+    "takeProfitPercent": 20,
+    "stopLossPercent": 10,
+    "rugDetectionLiquidityDropPercent": 50
+  },
+  "monitorIntervalMs": 2000,
+  "scanIntervalMinutes": 5
+}

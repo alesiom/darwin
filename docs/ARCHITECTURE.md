@@ -13,7 +13,7 @@
 | DEX aggregator | Jupiter Swap API v6 |
 | Token discovery | DexScreener API |
 | Safety checks | RugCheck API + Solana RPC on-chain queries |
-| AI decisions | Anthropic Claude (Haiku 4.5 scan, Sonnet 4.5 trade) |
+| AI decisions | LLM provider interface (Anthropic Claude initially, local models later) |
 | State | JSON files on disk |
 | Dashboard | Terminal UI (chalk) |
 
@@ -25,7 +25,10 @@ src/
 ├── wallets.js        Wallet lifecycle: generate, fund, sweep, check balances
 ├── scanner.js        Token discovery with shared cache across agents
 ├── safety.js         Multi-layer rug pull detection
-├── brain.js          LLM decision engine with prompt caching
+├── brain.js          LLM decision engine (provider-agnostic)
+├── providers/
+│   ├── anthropic.js  Anthropic SDK: prompt caching, extended thinking
+│   └── ollama.js     Local models via Ollama (future)
 ├── trader.js         DEX execution (buy/sell) + paper trading mock
 ├── monitor.js        Real-time price monitoring and exit triggers
 ├── tournament.js     Rankings, shots, elimination, evolution
@@ -64,9 +67,10 @@ src/
 - Compile structured safety reports for LLM consumption
 
 **brain.js** -- LLM Decision Engine
-- Anthropic SDK with prompt caching for personality definitions, tournament rules, and system prompts
-- Haiku scan: lightweight evaluation of token candidates against agent personality (~70% of calls)
-- Sonnet trade decision with extended thinking (~30% of calls). Each decision prompt includes:
+- Provider-agnostic interface: brain.js calls `provider.scan()` and `provider.decide()`, never an SDK directly
+- Provider implementations live in `src/providers/`: Anthropic (launch), Ollama/llama.cpp (future local)
+- Scan call: lightweight model evaluates token candidates against agent personality (~70% of calls)
+- Trade decision call: strong model with deep reasoning (~30% of calls). Each decision prompt includes:
   - Agent's full personality definition
   - Current balance split: investable vs. reserve
   - Full trade history this month (wins, losses, skips, best/worst)
@@ -114,8 +118,8 @@ src/
 |-----|---------|------|------|
 | DexScreener | Token discovery | None | Free |
 | RugCheck | Safety scoring | None | Free |
-| Claude (Haiku 4.5) | Scan decisions | API key | $1/$5 per MTok |
-| Claude (Sonnet 4.5) | Trade decisions | API key | $3/$15 per MTok |
+| LLM scan (Haiku 4.5 initially) | Scan decisions | API key | $1/$5 per MTok |
+| LLM trade (Sonnet 4.5 initially) | Trade decisions | API key | $3/$15 per MTok |
 | Jupiter Swap v6 | DEX execution | None | Free (+ tx fees) |
 | Solana RPC | Balance, tx, on-chain data | API key (Helius/QuickNode) | Free tier |
 
@@ -264,9 +268,22 @@ Extend beyond Solana to Ethereum, Base, and Arbitrum. Swap out Jupiter for Unisw
 
 Integrate Birdeye, GMGN, and Solana Tracker alongside DexScreener for richer token discovery and cross-validation of market data.
 
-### Model-Agnostic Brain
+### Local-First LLM Migration
 
-Support multiple LLM providers (OpenAI, DeepSeek, local Ollama models) through a model-agnostic interface in the brain module.
+The provider interface in brain.js is designed for an eventual migration from Anthropic API to local models running on dedicated hardware (Mac Studio, 128-512GB RAM). This eliminates the ~$80-120/month API cost and removes rate limits, enabling unlimited experimentation.
+
+**Migration path:**
+- **Phase 1 (now):** Anthropic API via `providers/anthropic.js`. Haiku for scans, Sonnet for trade decisions. Prompt caching reduces costs ~90% on repeated content.
+- **Phase 2 (when profitable):** Local models via `providers/ollama.js`. A 70B+ parameter model on 256-512GB RAM matches Sonnet quality for structured JSON reasoning. A smaller quantized model handles scans. Zero marginal cost per call.
+
+**Provider interface contract:**
+```js
+// Every provider must implement:
+provider.scan(prompt)    // → { action, token, reasoning }
+provider.decide(prompt)  // → { action, token, invest_amount, reasoning }
+```
+
+Provider-specific features (Anthropic prompt caching, extended thinking) live inside the provider implementation, not in brain.js. brain.js only knows about `scan()` and `decide()`.
 
 ### Post-Tournament Analytics
 
