@@ -19,3 +19,8 @@ All notable changes to Darwin are documented in this file.
 - Tournament rules (config/tournament-rules.json): all parameters from spec ($25 cap, 31 shots, 100 agents, circuit breaker thresholds)
 - LLM provider interface (src/brain.js): provider-agnostic scan/decide functions, prompt assembly matching spec templates, JSON response parsing and validation, per-trade cap enforcement with clamping, token usage tracking (Closes #29)
 - Anthropic provider (src/providers/anthropic.js): Haiku for scans with prompt caching, Sonnet for trade decisions with extended thinking + prompt caching, retry with backoff, cost estimation
+- Token scanner (src/scanner.js): DexScreener polling (profiles + batch pairs), in-memory cache with TTL eviction, per-agent dedup, rate limiting, pre-filtering by liquidity/volume/age (Closes #5)
+- Safety scoring (src/safety.js): external safety score integration with 15-min cache, graceful failure handling (Closes #6)
+- On-chain safety checks (src/safety.js): mint/freeze authority verification, top-holder concentration analysis via largest accounts (Closes #7)
+- Safety report compilation (src/safety.js): pool liquidity impact gate, parallel check orchestration, HIGH/MODERATE/LOW risk classification, formatted report string for decision engine (Closes #8)
+- Scanner filter config (config/tournament-rules.json): token age bounds, volume floor, cache TTL, max cache size
