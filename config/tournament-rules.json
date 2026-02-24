@@ -8,6 +8,7 @@
   "stopLossPercent": 10,
   "maxTradeCapUsdc": 25,
   "minTradeUsdc": 0.5,
+  "slippageBps": 300,
   "minPoolLiquidityUsdc": 1250,
   "poolImpactMaxPercent": 2,
   "eliminationCount": 50,
