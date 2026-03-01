@@ -2,6 +2,34 @@
 
 All notable changes to Darwin are documented in this file.
 
+## [0.3.0] - 2026-03-01
+
+### Added
+
+- Main orchestrator (src/index.js): concurrent agent loops with staggered starts, crash isolation per agent, inter-cycle delays, decision logging, startup recovery for open positions (Closes #20)
+- Graceful shutdown (src/index.js): SIGINT/SIGTERM handlers, subsystem teardown, 30s timeout for agent loops, final standings update, usage summary (Closes #21)
+- Tournament state (src/tournament.js): shot tracking, trade accounting, balance calculation with reserve system (Closes #16)
+- Standings calculation (src/tournament.js): ranking by balance, death detection at threshold, daily snapshots (Closes #17)
+- Month-end elimination (src/tournament.js): bottom-N elimination with fund sweeping back to master wallet (Closes #18)
+- Circuit breaker (src/tournament.js): mass death detection with configurable threshold and day cutoff (Closes #19)
+- Terminal dashboard (src/dashboard.js): live top-10 standings, near-cutoff agents, recent trades, system stats with auto-refresh (Closes #22)
+- 100-agent paper tournament running successfully (Closes #23, #24)
+
+### Changed
+
+- Safety gate to advisory model: only confirmed honeypots (rugged + freeze authority) are hard-blocked, all other risk levels pass through as context for agent decisions (Closes #32)
+- Scanner poll interval from 5 minutes to 1 minute for faster token throughput (Closes #31)
+- Scanner minimum token age from 30 minutes to 5 minutes to catch early momentum (Closes #33)
+- Extended thinking capture in decide responses for richer decision logging
+- Agent runtime data (state, decisions, history) excluded from git via .gitignore
+- Research findings (docs/RESEARCH.md) excluded from git — private content
+
+## [0.2.0] - 2026-02-24
+
+### Added
+
+- Integration test with 5 agents in paper mode validated end-to-end pipeline
+
 ## [0.1.0] - 2026-02-24
 
 ### Added

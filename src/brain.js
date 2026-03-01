@@ -221,14 +221,16 @@ export async function decide(agentId, personality, context) {
 
     try {
       const parsed = parseJsonResponse(result.text);
-      return validateDecideResponse(parsed, rules);
+      const validated = validateDecideResponse(parsed, rules);
+      validated.thinking = result.thinking || null;
+      return validated;
     } catch (err) {
       if (attempt === 0) {
         log.warn(`Decide response malformed for agent ${agentId}, retrying: ${err.message}`);
         continue;
       }
       log.warn(`Decide response malformed after retry for agent ${agentId}, defaulting to skip: ${err.message}`);
-      return { action: 'skip', token: null, reasoning: `Malformed LLM response: ${err.message}` };
+      return { action: 'skip', token: null, reasoning: `Malformed LLM response: ${err.message}`, thinking: null };
     }
   }
 }

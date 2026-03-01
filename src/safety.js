@@ -204,10 +204,12 @@ export async function compileSafetyReport(tokenAddress, poolLiquidityUsd, rules)
     holderConcentration: holders
   };
 
-  const pass = riskLevel !== 'HIGH';
+  // Only hard-block confirmed honeypots (rugged + freeze authority active).
+  // All other risk levels pass through as advisory for the decision engine.
+  const hardBlock = rug.rugged && mint.freezeAuthority === 'active';
 
   return {
-    pass,
+    pass: !hardBlock,
     riskLevel,
     report: formatReport({ riskLevel, rug, mint, holders, liquidityCheck, poolLiquidityUsd }),
     details

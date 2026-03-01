@@ -25,9 +25,9 @@
     "rugDetectionLiquidityDropPercent": 50
   },
   "monitorIntervalMs": 2000,
-  "scanIntervalMinutes": 5,
+  "scanIntervalMinutes": 1,
   "scannerFilters": {
-    "minTokenAgeMins": 30,
+    "minTokenAgeMins": 5,
     "maxTokenAgeDays": 7,
     "minVolume24hUsd": 500,
     "cacheTtlMs": 1800000,

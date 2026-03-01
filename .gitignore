@@ -2,7 +2,10 @@ node_modules/
 CLAUDE.md
 .env
 config/master-wallet.json
-agents/**/wallet.json
+agents/**/*.json
 logs/
 *.log
 .DS_Store
+
+# Research findings — private, not for GitHub mirror
+docs/RESEARCH.md
