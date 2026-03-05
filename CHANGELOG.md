@@ -2,6 +2,24 @@
 
 All notable changes to Darwin are documented in this file.
 
+## [0.4.0] - 2026-03-05
+
+### Added
+
+- Global max hold time (src/monitor.js): hard 8-hour ceiling on all positions, fires after personality-specific timeouts (Closes #38)
+- Rising death floor (src/tournament.js): time-dependent floor rises exponentially from $0 to $4.50 over the tournament, pressuring idle agents toward death (Closes #39)
+- Death floor visibility in decide prompt: agents see current floor, target value, and understand the rising pressure
+- Max hold time visibility in decide prompt: agents know positions get force-closed
+- Speed-is-the-edge framing in both scan and decide prompts
+
+### Changed
+
+- Scan prompt rewritten for Haiku: personality block reduced to single style line, action-biased framing ("pick the best" vs "are any worth investigating")
+- Scan system prompt biased toward trading: "Your default is to trade, not wait"
+- Impatient exit strategy timeout reduced from 2 hours to 30 minutes
+- Personalities reduced from 100 to 20 agents with named identities and freeform descriptions
+- Dashboard cost estimation updated to Haiku pricing for both scan and decide
+
 ## [0.3.0] - 2026-03-01
 
 ### Added

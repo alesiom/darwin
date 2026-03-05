@@ -6,7 +6,7 @@ import { loadTradeHistory, hasOpenPosition, getOpenPosition } from './trader.js'
 
 const PAPER_MODE = process.env.PAPER_TRADING === 'true';
 
-const DEFAULT_STATE = { reserve: 0, alive: true, eliminated: false, deathTimestamp: null, eliminatedTimestamp: null };
+const DEFAULT_STATE = { reserve: 0, alive: true, eliminated: false, deathTimestamp: null, eliminatedTimestamp: null, llmCost: 0 };
 const STANDINGS_PATH = 'logs/standings.json';
 
 // --- Internal: Per-Agent State ---
@@ -20,6 +20,14 @@ async function loadAgentState(agentNum) {
 // Persist an agent's tournament state to disk.
 async function saveAgentState(agentNum, state) {
   await writeJson(`${agentDir(agentNum)}/state.json`, state);
+}
+
+// Add LLM call cost to an agent's cumulative total. Deducted from paper balance.
+export async function accumulateLlmCost(agentNum, cost) {
+  if (!cost || cost <= 0) return;
+  const state = await loadAgentState(agentNum);
+  state.llmCost = (state.llmCost || 0) + cost;
+  await saveAgentState(agentNum, state);
 }
 
 // --- Internal: Balance Computation ---
@@ -40,6 +48,10 @@ async function computePaperBalance(agentNum, rules) {
     const pos = await getOpenPosition(agentNum);
     if (pos) balance -= pos.entryAmount;
   }
+
+  // Deduct accumulated LLM costs from paper balance
+  const state = await loadAgentState(agentNum);
+  balance -= (state.llmCost || 0);
 
   return balance;
 }
@@ -87,7 +99,7 @@ export async function getAgentBalance(agentNum, rules) {
   }
 
   const investable = Math.max(0, rawBalance - state.reserve);
-  return { investable, reserve: state.reserve, total: rawBalance };
+  return { investable, reserve: state.reserve, total: rawBalance, llmCost: state.llmCost || 0 };
 }
 
 // Compute win/loss record from completed trades in history.
@@ -241,10 +253,25 @@ export async function getStandingsForAgent(agentNum, rules) {
 
 // --- Exports: Death Detection (#17) ---
 
-// Check if an agent's balance has dropped to the death threshold.
+// Compute the time-dependent death floor. Rises over the tournament to pressure idle agents.
+export async function getDeathFloor(rules) {
+  if (!rules.risingFloor) return rules.deathThreshold;
+  const { startDay, endValue, curve } = rules.risingFloor;
+  const snapshot = await readJson(STANDINGS_PATH);
+  const day = snapshot?.day || 1;
+  if (day < startDay) return rules.deathThreshold;
+  const progress = Math.min(1, (day - startDay) / (rules.durationDays - startDay));
+  if (curve === 'exponential') {
+    return rules.deathThreshold + endValue * (progress * progress);
+  }
+  return rules.deathThreshold + endValue * progress;
+}
+
+// Check if an agent's balance has dropped to the death floor.
 export async function checkDeath(agentNum, rules) {
   const { total } = await getAgentBalance(agentNum, rules);
-  const dead = total <= rules.deathThreshold;
+  const floor = await getDeathFloor(rules);
+  const dead = total <= floor;
 
   if (dead) {
     const state = await loadAgentState(agentNum);
@@ -252,7 +279,7 @@ export async function checkDeath(agentNum, rules) {
       state.alive = false;
       state.deathTimestamp = Date.now();
       await saveAgentState(agentNum, state);
-      log.info(`Agent ${agentId(agentNum)} declared dead (balance: $${total.toFixed(2)})`, { agent: agentId(agentNum) });
+      log.info(`Agent ${agentId(agentNum)} declared dead (balance: $${total.toFixed(2)}, floor: $${floor.toFixed(2)})`, { agent: agentId(agentNum) });
     }
   }
 

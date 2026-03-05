@@ -9,7 +9,8 @@ import { executeBuy, executeSell, hasOpenPosition, getOpenPosition } from './tra
 import { monitorPosition, stopMonitoring } from './monitor.js';
 import {
   initTournament, getAgentBalance, getAgentRecord, getShotsRemaining,
-  adjustReserve, updateStandings, getStandingsForAgent, checkDeath, checkCircuitBreaker
+  adjustReserve, updateStandings, getStandingsForAgent, checkDeath, checkCircuitBreaker,
+  accumulateLlmCost, getDeathFloor
 } from './tournament.js';
 import { startDashboard, stopDashboard, recordTrade } from './dashboard.js';
 
@@ -142,6 +143,7 @@ async function runOneCycle(agentNum, personality) {
 
   // 2. LLM scan: lightweight evaluation
   const scanResult = await scan(agentId(agentNum), personality, candidates);
+  const scanCost = scanResult.cost || 0;
 
   // Mark ALL candidates as seen regardless of scan result
   for (const c of candidates) {
@@ -153,9 +155,11 @@ async function runOneCycle(agentNum, personality) {
     token: scanResult.token || null,
     symbol: null,
     reasoning: scanResult.reasoning || '',
+    cost: scanCost,
   };
 
   if (scanResult.action === 'skip') {
+    await accumulateLlmCost(agentNum, scanCost);
     log.debug(`Scan: skip (${scanResult.reasoning?.slice(0, 60) || 'no reason'})`, ctx);
     await appendDecisionLog(agentNum, entry);
     return;
@@ -164,6 +168,7 @@ async function runOneCycle(agentNum, personality) {
   // 3. Safety check on selected token
   const token = candidates.find(c => c.address === scanResult.token);
   if (!token) {
+    await accumulateLlmCost(agentNum, scanCost);
     log.warn(`Scan selected unknown token ${scanResult.token}`, ctx);
     await appendDecisionLog(agentNum, entry);
     return;
@@ -180,6 +185,7 @@ async function runOneCycle(agentNum, personality) {
   };
 
   if (!safetyReport.pass) {
+    await accumulateLlmCost(agentNum, scanCost);
     log.info(`Safety hard-blocked ${token.symbol}: honeypot`, ctx);
     await appendDecisionLog(agentNum, entry);
     return;
@@ -187,6 +193,7 @@ async function runOneCycle(agentNum, personality) {
 
   // 4. Assemble full context for trade decision
   const balance = await getAgentBalance(agentNum, rules);
+  balance.deathFloor = await getDeathFloor(rules);
   const record = await getAgentRecord(agentNum);
   record.skips = skipCounts.get(agentNum) || 0;
   const shotsRemaining = await getShotsRemaining(agentNum, rules);
@@ -208,6 +215,8 @@ async function runOneCycle(agentNum, personality) {
 
   // 5. LLM decide: full trade decision
   const decision = await decide(agentId(agentNum), personality, decideContext);
+  const decideCost = decision.cost || 0;
+  await accumulateLlmCost(agentNum, scanCost + decideCost);
 
   entry.decision = {
     action: decision.action,
@@ -215,6 +224,7 @@ async function runOneCycle(agentNum, personality) {
     thinking: decision.thinking || null,
     investAmount: decision.invest_amount || null,
     reserveAdjustment: decision.reserve_adjustment || null,
+    cost: decideCost,
   };
 
   entry.context = {
@@ -223,6 +233,7 @@ async function runOneCycle(agentNum, personality) {
     day: standings.day,
     shotsRemaining,
     record: { wins: record.wins, losses: record.losses, skips: record.skips },
+    llmCostSoFar: balance.llmCost || 0,
   };
 
   // 6. Execute decision
@@ -250,6 +261,7 @@ async function runOneCycle(agentNum, personality) {
   }
 
   const investAmount = Math.min(decision.invest_amount, balance.investable);
+  entry.decision.investAmount = investAmount;
   log.info(`Trading: $${investAmount.toFixed(2)} → ${token.symbol}`, ctx);
 
   const buyResult = await executeBuy(agentNum, token.address, investAmount, rules);

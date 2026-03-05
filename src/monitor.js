@@ -141,7 +141,7 @@ function evaluateAllPositions() {
 
 // Evaluate exit conditions in priority order. Returns trigger name or null.
 function checkExitTriggers(entry, price, liquidity) {
-  const { position, thresholds, peakPrice } = entry;
+  const { position, thresholds, rules, peakPrice } = entry;
   const pnlPercent = ((price - position.entryPrice) / position.entryPrice) * 100;
   const elapsed = Date.now() - position.timestamp;
 
@@ -179,6 +179,11 @@ function checkExitTriggers(entry, price, liquidity) {
     return 'timeout';
   }
 
+  // 6. Global max hold: hard ceiling for all strategies
+  if (rules?.maxHoldTimeMs && elapsed >= rules.maxHoldTimeMs) {
+    return 'max_hold_time';
+  }
+
   return null;
 }
 
@@ -206,7 +211,7 @@ function getEffectiveThresholds(rules, personality) {
       break;
 
     case 'impatient':
-      base.timeoutMs = 2 * 60 * 60 * 1000; // 2 hours
+      base.timeoutMs = 30 * 60 * 1000; // 30 minutes
       break;
 
     case 'diamond_hands':
@@ -242,6 +247,7 @@ export function monitorPosition(agentNum, position, rules, personality) {
     const entry = {
       position,
       thresholds,
+      rules,
       peakPrice: position.entryPrice,
       entryLiquidity,
       resolve,
@@ -257,7 +263,8 @@ export function monitorPosition(agentNum, position, rules, personality) {
     log.info(
       `Monitoring agent ${agentId(agentNum)}: TP=${thresholds.takeProfitPct}% SL=${thresholds.stopLossPct}%` +
       (thresholds.hasTrailingStop ? ' [trailing]' : '') +
-      (thresholds.timeoutMs > 0 ? ` [timeout=${thresholds.timeoutMs / 1000}s]` : ''),
+      (thresholds.timeoutMs > 0 ? ` [timeout=${thresholds.timeoutMs / 1000}s]` : '') +
+      (rules.maxHoldTimeMs ? ` [maxHold=${rules.maxHoldTimeMs / 3600000}h]` : ''),
       { agent: agentId(agentNum) }
     );
   });

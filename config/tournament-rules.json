@@ -1,5 +1,5 @@
 {
-  "agentsPerTournament": 100,
+  "agentsPerTournament": 20,
   "startingCapitalUsdc": 5,
   "gasPerAgentSol": 0.3,
   "durationDays": 31,
@@ -11,7 +11,7 @@
   "slippageBps": 300,
   "minPoolLiquidityUsdc": 1250,
   "poolImpactMaxPercent": 2,
-  "eliminationCount": 50,
+  "eliminationCount": 10,
   "deathThreshold": 0,
   "massDeathCircuitBreaker": {
     "threshold": 0.7,
@@ -23,6 +23,12 @@
     "takeProfitPercent": 20,
     "stopLossPercent": 10,
     "rugDetectionLiquidityDropPercent": 50
+  },
+  "maxHoldTimeMs": 28800000,
+  "risingFloor": {
+    "startDay": 3,
+    "endValue": 4.5,
+    "curve": "exponential"
   },
   "monitorIntervalMs": 2000,
   "scanIntervalMinutes": 1,

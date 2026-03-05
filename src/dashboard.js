@@ -148,11 +148,11 @@ function renderSystemStats() {
   const scanCalls = llm.scan.calls;
   const decideCalls = llm.decide.calls;
 
-  // Rough cost estimate (Haiku scan + Sonnet decide)
+  // Rough cost estimate (Haiku for both scan and decide)
   const scanCost = (llm.scan.inputTokens * 1 + llm.scan.outputTokens * 5 +
     llm.scan.cacheRead * 0.1 + llm.scan.cacheCreation * 1.25) / 1_000_000;
-  const decideCost = (llm.decide.inputTokens * 3 + llm.decide.outputTokens * 15 +
-    llm.decide.cacheRead * 0.3 + llm.decide.cacheCreation * 3.75) / 1_000_000;
+  const decideCost = (llm.decide.inputTokens * 1 + llm.decide.outputTokens * 5 +
+    llm.decide.cacheRead * 0.1 + llm.decide.cacheCreation * 1.25) / 1_000_000;
   const totalCost = scanCost + decideCost;
 
   return `${chalk.bold('SYSTEM')}: Scanner ${chalk.cyan(scanner.cacheSize)} cached` +

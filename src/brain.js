@@ -41,24 +41,19 @@ export function getUsageStats() {
 
 // --- Prompt Assembly ---
 
-// Build the scan prompt: lightweight evaluation of token candidates.
+// Build the scan prompt: lightweight filter to pick the best candidate.
 function buildScanPrompt(agentId, personality, candidates) {
-  const personalityBlock = formatPersonality(personality);
   const tokenTable = formatCandidates(candidates);
+  const style = personality.freeform_description
+    || `${personality.entry_timing}, ${personality.token_selection}`;
 
-  return `You are Agent ${agentId}, a Solana token trader with the following personality:
-${personalityBlock}
+  return `Agent ${agentId} | Style: ${style}
 
-Here are newly listed tokens on Solana DEXes:
+Tokens:
 ${tokenTable}
 
-Based on your personality, are any of these worth investigating further?
-Respond with a JSON object:
-{
-  "action": "investigate" | "skip",
-  "token": "address if investigating",
-  "reasoning": "brief explanation"
-}`;
+Pick the best token to investigate. Only skip if NOTHING here has any potential at all.
+JSON only: {"action":"investigate"|"skip","token":"address","reasoning":"brief"}`;
 }
 
 // Build the trade decision prompt: full context with existential framing.
@@ -72,6 +67,8 @@ ${personalityBlock}
 
 YOUR STATUS:
 - Balance: $${balance.investable} investable + $${balance.reserve} reserve = $${balance.total} total
+- Death floor: $${balance.deathFloor?.toFixed(2) || '0.00'} (rises to $${rules.risingFloor ? (rules.deathThreshold + rules.risingFloor.endValue).toFixed(2) : '0.00'} by day ${rules.durationDays} — you die if your balance drops below this)
+- LLM cost burned: $${balance.llmCost?.toFixed(4) || '0.0000'} (deducted from your capital)
 - Record this month: ${record.wins}W / ${record.losses}L / ${record.skips} skips
 - Shots remaining: ${shotsRemaining} of ${rules.shotsPerMonth}
 - Days remaining: ${daysRemaining} of ${rules.durationDays}
@@ -97,6 +94,8 @@ CRITICAL RULES:
 - The bottom ${rules.eliminationCount} are replaced.
 - Maximum investment per trade: $${cap}.
   You cannot invest more than this regardless of your balance.
+- Positions are automatically closed after ${rules.maxHoldTimeMs ? (rules.maxHoldTimeMs / 3600000) + ' hours' : 'the exit trigger fires'}. Don't hold hoping for miracles.
+- Speed is everything in memecoins. The earlier you enter, the bigger the upside. Waiting for "better opportunities" means missing them.
 
 You must decide:
 1. SKIP — do not trade. Save your shot for later.
@@ -195,14 +194,14 @@ export async function scan(agentId, personality, candidates) {
 
     try {
       const parsed = parseJsonResponse(result.text);
-      return validateScanResponse(parsed);
+      return { ...validateScanResponse(parsed), cost: result.cost };
     } catch (err) {
       if (attempt === 0) {
         log.warn(`Scan response malformed for agent ${agentId}, retrying: ${err.message}`);
         continue;
       }
       log.warn(`Scan response malformed after retry for agent ${agentId}, defaulting to skip: ${err.message}`);
-      return { action: 'skip', token: null, reasoning: `Malformed LLM response: ${err.message}` };
+      return { action: 'skip', token: null, reasoning: `Malformed LLM response: ${err.message}`, cost: result.cost };
     }
   }
 }
@@ -223,6 +222,7 @@ export async function decide(agentId, personality, context) {
       const parsed = parseJsonResponse(result.text);
       const validated = validateDecideResponse(parsed, rules);
       validated.thinking = result.thinking || null;
+      validated.cost = result.cost;
       return validated;
     } catch (err) {
       if (attempt === 0) {
@@ -230,7 +230,7 @@ export async function decide(agentId, personality, context) {
         continue;
       }
       log.warn(`Decide response malformed after retry for agent ${agentId}, defaulting to skip: ${err.message}`);
-      return { action: 'skip', token: null, reasoning: `Malformed LLM response: ${err.message}`, thinking: null };
+      return { action: 'skip', token: null, reasoning: `Malformed LLM response: ${err.message}`, thinking: null, cost: result.cost };
     }
   }
 }

@@ -7,13 +7,13 @@ import 'dotenv/config';
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const SCAN_MODEL = 'claude-haiku-4-5-20251001';
-const DECIDE_MODEL = 'claude-sonnet-4-5-20250929';
-const THINKING_BUDGET = 4096;
+const DECIDE_MODEL = 'claude-haiku-4-5-20251001';
+const THINKING_BUDGET = 0;
 
 // Cost per million tokens (input/output) for estimation.
 const COSTS = {
   [SCAN_MODEL]: { input: 1, output: 5 },
-  [DECIDE_MODEL]: { input: 3, output: 15 }
+  [DECIDE_MODEL]: { input: 1, output: 5 }
 };
 
 // Extract the text content from a message response, handling thinking blocks.
@@ -55,7 +55,7 @@ export async function scan(prompt) {
       max_tokens: 256,
       system: [{
         type: 'text',
-        text: 'You are a Solana token trading agent. Evaluate tokens and respond with JSON only.',
+        text: 'You are a fast-moving Solana memecoin trader. Speed is your edge — the earlier you enter, the bigger the upside. Your default is to trade, not wait. Respond with JSON only.',
         cache_control: { type: 'ephemeral' }
       }],
       messages: [{ role: 'user', content: prompt }]
@@ -72,17 +72,13 @@ export async function scan(prompt) {
   return { text, usage: tokenUsage, cost };
 }
 
-// Full trade decision: deep reasoning with extended thinking and the strong model.
+// Full trade decision: evaluate with the configured model.
 // Uses prompt caching on the system prompt for cost reduction.
 export async function decide(prompt) {
   const message = await retry(
     () => client.messages.create({
       model: DECIDE_MODEL,
-      max_tokens: THINKING_BUDGET + 1024,
-      thinking: {
-        type: 'enabled',
-        budget_tokens: THINKING_BUDGET
-      },
+      max_tokens: 1024,
       system: [{
         type: 'text',
         text: 'You are a Solana token trading agent in a survival tournament. Think carefully about your decision. Respond with JSON only after your reasoning.',
@@ -97,13 +93,7 @@ export async function decide(prompt) {
   const tokenUsage = extractUsage(message);
   const cost = estimateCost(DECIDE_MODEL, tokenUsage);
 
-  // Extract thinking content for logging
-  const thinking = message.content.find(b => b.type === 'thinking');
-  if (thinking) {
-    log.debug(`Decide thinking: ${thinking.thinking.slice(0, 200)}...`);
-  }
-
   log.debug(`Decide: ${tokenUsage.input_tokens}in/${tokenUsage.output_tokens}out, cache_read=${tokenUsage.cache_read_input_tokens}, ~$${cost.toFixed(4)}`);
 
-  return { text, usage: tokenUsage, cost, thinking: thinking?.thinking || null };
+  return { text, usage: tokenUsage, cost, thinking: null };
 }
